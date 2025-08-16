@@ -2,10 +2,13 @@ package services;
 
 import dao.ResidentDAO;
 import dao.VehicleDAO;
+import database.DatabaseManager;
+import database.TransactionManager;
 import model.Resident;
 import model.Vehicle;
 import ui.InputHandler;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Scanner;
@@ -100,23 +103,38 @@ public final class VehicleService {
     public void addVehicle() {
         System.out.println("\n--- Add New Vehicle ---");
         String residentId = InputHandler.getValidStringInput("Enter the Resident ID for the vehicle: ").toUpperCase();
+        Connection conn = null;
         try {
-            if (residentDAO.residentExists(residentId)) {
+            conn = DatabaseManager.getConnection();
+            TransactionManager.beginTransaction(conn);
+            ResidentDAO residentDAOForTx = new ResidentDAO(conn);
+            VehicleDAO vehicleDAOForTx = new VehicleDAO(conn);
+
+            if (residentDAOForTx.residentExists(residentId)) {
                 System.out.println("Resident with ID '" + residentId + "' not found.");
+                TransactionManager.rollbackTransaction(conn);
                 return;
             }
 
-            int[] vehicleCounts = vehicleDAO.getResidentVehicleCounts(residentId);
+            int[] vehicleCounts = vehicleDAOForTx.getResidentVehicleCounts(residentId);
             if (vehicleCounts[0] >= 1 && vehicleCounts[1] >= 2) {
                 System.out.println("Error: This resident already has the maximum number of vehicles (1 four-wheeler and 2 two-wheelers).");
+                TransactionManager.rollbackTransaction(conn);
                 return;
             }
 
             String vehicleType = InputHandler.getValidVehicleTypeInput("Select Vehicle Type");
-            addVehicleDetails(residentId, vehicleType);
+            if (addVehicleDetails(residentId, vehicleType, conn)) {
+                TransactionManager.commitTransaction(conn);
+            } else {
+                TransactionManager.rollbackTransaction(conn);
+            }
 
         } catch (SQLException e) {
             System.err.println("Database error while adding vehicle: " + e.getMessage());
+            TransactionManager.rollbackTransaction(conn);
+        } finally {
+            TransactionManager.endTransaction(conn);
         }
     }
 
@@ -125,17 +143,22 @@ public final class VehicleService {
      *
      * @param residentId   The ID of the resident.
      * @param vehicleType  The type of vehicle ("4-wheeler" or "2-wheeler").
+     * @param conn         The database connection for the transaction.
+     * @return true if successful, false otherwise.
      */
-    private void addVehicleDetails(String residentId, String vehicleType) throws SQLException {
-        int[] vehicleCounts = vehicleDAO.getResidentVehicleCounts(residentId);
+    private boolean addVehicleDetails(String residentId, String vehicleType, Connection conn) throws SQLException {
+        VehicleDAO vehicleDAOForTx = new VehicleDAO(conn);
+        ResidentDAO residentDAOForTx = new ResidentDAO(conn);
+
+        int[] vehicleCounts = vehicleDAOForTx.getResidentVehicleCounts(residentId);
 
         if ("4-wheeler".equals(vehicleType) && vehicleCounts[0] >= 1) {
             System.out.println("Error: This resident already owns a 4-wheeler. Cannot add another.");
-            return;
+            return false;
         }
         if ("2-wheeler".equals(vehicleType) && vehicleCounts[1] >= 2) {
             System.out.println("Error: This resident already owns two 2-wheelers. Cannot add more.");
-            return;
+            return false;
         }
 
         String vehicleNumber;
@@ -145,7 +168,7 @@ public final class VehicleService {
                 System.out.println("Invalid format. Please use the format 'LLDDLLDDDD' (e.g., GJ05CD5678).");
                 continue;
             }
-            if (vehicleDAO.vehicleExists(vehicleNumber)) {
+            if (vehicleDAOForTx.vehicleExists(vehicleNumber)) {
                 System.out.println("Error: Vehicle number '" + vehicleNumber + "' already exists.");
                 continue;
             }
@@ -155,10 +178,12 @@ public final class VehicleService {
         String vehicleBrand = InputHandler.getValidStringInput("Enter Vehicle Brand: ");
         Vehicle newVehicle = new Vehicle(vehicleNumber, residentId, vehicleType, vehicleBrand);
 
-        if (vehicleDAO.addVehicle(newVehicle)) {
+        if (vehicleDAOForTx.addVehicle(newVehicle)) {
+            residentDAOForTx.updateResidentVehicleCount(residentId, 1); // Increment count
             System.out.println("Vehicle '" + vehicleNumber + "' added successfully!");
-            residentDAO.updateResidentVehicleCount(residentId, 1); // Increment count
+            return true;
         }
+        return false;
     }
 
     /**
@@ -167,24 +192,38 @@ public final class VehicleService {
     public void deleteVehicle() {
         System.out.println("\n--- Delete Vehicle ---");
         String vehicleNumber = InputHandler.getValidStringInput("Enter the Vehicle Number to delete: ").toUpperCase();
+        Connection conn = null;
         try {
-            String residentId = vehicleDAO.getResidentIdForVehicle(vehicleNumber);
+            conn = DatabaseManager.getConnection();
+            TransactionManager.beginTransaction(conn);
+            VehicleDAO vehicleDAOForTx = new VehicleDAO(conn);
+            ResidentDAO residentDAOForTx = new ResidentDAO(conn);
+
+            String residentId = vehicleDAOForTx.getResidentIdForVehicle(vehicleNumber);
             if (residentId == null) {
                 System.out.println("Vehicle with number '" + vehicleNumber + "' not found.");
+                TransactionManager.rollbackTransaction(conn);
                 return;
             }
 
             System.out.print("Are you sure you want to delete vehicle '" + vehicleNumber + "'? (y/n): ");
             if (scanner.nextLine().equalsIgnoreCase("y")) {
-                if (vehicleDAO.deleteVehicle(vehicleNumber)) {
+                if (vehicleDAOForTx.deleteVehicle(vehicleNumber)) {
+                    residentDAOForTx.updateResidentVehicleCount(residentId, -1); // Decrement count
                     System.out.println("Vehicle deleted successfully.");
-                    residentDAO.updateResidentVehicleCount(residentId, -1); // Decrement count
+                    TransactionManager.commitTransaction(conn);
+                } else {
+                    TransactionManager.rollbackTransaction(conn);
                 }
             } else {
                 System.out.println("Deletion cancelled.");
+                TransactionManager.rollbackTransaction(conn);
             }
         } catch (SQLException e) {
             System.err.println("Failed to delete vehicle: " + e.getMessage());
+            TransactionManager.rollbackTransaction(conn);
+        } finally {
+            TransactionManager.endTransaction(conn);
         }
     }
 
@@ -216,37 +255,34 @@ public final class VehicleService {
     }
 
     /**
-     * A guided process for a new resident to add their vehicles.
+     * A guided process for a new resident to add their vehicles within a transaction.
      *
      * @param residentId The ID of the new resident.
+     * @param conn       The database connection for the transaction.
      */
-    public void addVehiclesForNewResident(String residentId) {
+    public void addVehiclesForNewResident(String residentId, Connection conn) throws SQLException {
         System.out.print("Do you want to add vehicles for this new resident now? (y/n): ");
         if (!scanner.nextLine().equalsIgnoreCase("y")) {
             return;
         }
         System.out.println("\nA resident can have one 4-wheeler and up to two 2-wheelers.");
 
-        try {
-            // Add 4-wheeler
-            System.out.print("Add a 4-wheeler? (y/n): ");
-            if (scanner.nextLine().equalsIgnoreCase("y")) {
-                System.out.println("\n-> Adding 4-wheeler...");
-                addVehicleDetails(residentId, "4-wheeler");
-            }
+        // Add 4-wheeler
+        System.out.print("Add a 4-wheeler? (y/n): ");
+        if (scanner.nextLine().equalsIgnoreCase("y")) {
+            System.out.println("\n-> Adding 4-wheeler...");
+            addVehicleDetails(residentId, "4-wheeler", conn);
+        }
 
-            // Add 2-wheelers
-            for (int i = 0; i < 2; i++) {
-                System.out.print("Add a 2-wheeler? (y/n): ");
-                if (scanner.nextLine().equalsIgnoreCase("y")) {
-                    System.out.println("\n-> Adding 2-wheeler " + (i + 1) + "...");
-                    addVehicleDetails(residentId, "2-wheeler");
-                } else {
-                    break; // Stop asking if user says no
-                }
+        // Add 2-wheelers
+        for (int i = 0; i < 2; i++) {
+            System.out.print("Add a 2-wheeler? (y/n): ");
+            if (scanner.nextLine().equalsIgnoreCase("y")) {
+                System.out.println("\n-> Adding 2-wheeler " + (i + 1) + "...");
+                addVehicleDetails(residentId, "2-wheeler", conn);
+            } else {
+                break; // Stop asking if user says no
             }
-        } catch (SQLException e) {
-            System.err.println("An error occurred while adding vehicles for the new resident: " + e.getMessage());
         }
     }
 }

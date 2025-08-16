@@ -16,7 +16,7 @@ public class ResidentDAO {
     private final Connection connection;
 
     /**
-     * Constructor for ResidentDAO.
+     * Default constructor for ResidentDAO.
      * Establishes a database connection.
      */
     public ResidentDAO() {
@@ -27,6 +27,15 @@ public class ResidentDAO {
             throw new RuntimeException(e);
         }
     }
+
+    /**
+     * Constructor that accepts an existing database connection.
+     * @param connection The database connection to use.
+     */
+    public ResidentDAO(Connection connection) {
+        this.connection = connection;
+    }
+
 
     /**
      * Retrieves a resident from the database by their ID.

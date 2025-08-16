@@ -17,7 +17,7 @@ public class VehicleDAO {
     private final Connection connection;
 
     /**
-     * Constructor for VehicleDAO.
+     * Default constructor for VehicleDAO.
      * Establishes a database connection.
      */
     public VehicleDAO() {
@@ -27,6 +27,14 @@ public class VehicleDAO {
             System.err.println("Database connection failed in VehicleDAO.");
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * Constructor that accepts an existing database connection.
+     * @param connection The database connection to use.
+     */
+    public VehicleDAO(Connection connection) {
+        this.connection = connection;
     }
 
     /**

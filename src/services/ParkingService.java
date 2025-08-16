@@ -1,6 +1,7 @@
 package services;
 
 import database.DatabaseManager;
+import database.TransactionManager;
 import ui.InputHandler;
 
 import java.sql.*;
@@ -47,10 +48,15 @@ public final class ParkingService {
     // =================================================================
 
     public void parkNewVehicle(String residentId) {
+        Connection conn = null;
         try {
+            conn = this.connection;
+            TransactionManager.beginTransaction(conn);
+
             List<String> unparkedVehicles = getUnparkedVehicles(residentId);
             if (unparkedVehicles.isEmpty()) {
                 System.out.println("All your vehicles are already parked.");
+                TransactionManager.rollbackTransaction(conn);
                 return;
             }
 
@@ -64,6 +70,7 @@ public final class ParkingService {
 
             if (choice > unparkedVehicles.size()) {
                 System.out.println("Parking cancelled.");
+                TransactionManager.rollbackTransaction(conn);
                 return;
             }
 
@@ -91,21 +98,33 @@ public final class ParkingService {
                     ps.setString(2, vehicleNumber);
                     if (ps.executeUpdate() > 0) {
                         System.out.println("Vehicle " + vehicleNumber + " parked successfully in slot " + slotId + ".");
+                        TransactionManager.commitTransaction(conn);
+                    } else {
+                        TransactionManager.rollbackTransaction(conn);
                     }
                 }
             } else {
                 System.out.println("Sorry, all parking slots (including spare) are full.");
+                TransactionManager.rollbackTransaction(conn);
             }
         } catch (SQLException e) {
             System.err.println("Database error while parking vehicle: " + e.getMessage());
+            TransactionManager.rollbackTransaction(conn);
+        } finally {
+            TransactionManager.endTransaction(conn);
         }
     }
 
     public void removeParkedVehicle(String residentId) {
+        Connection conn = null;
         try {
+            conn = this.connection;
+            TransactionManager.beginTransaction(conn);
+
             List<String> parkedVehicles = getParkedVehicles(residentId);
             if (parkedVehicles.isEmpty()) {
                 System.out.println("You have no vehicles currently parked.");
+                TransactionManager.rollbackTransaction(conn);
                 return;
             }
 
@@ -119,6 +138,7 @@ public final class ParkingService {
 
             if (choice > parkedVehicles.size()) {
                 System.out.println("Removal cancelled.");
+                TransactionManager.rollbackTransaction(conn);
                 return;
             }
 
@@ -137,11 +157,17 @@ public final class ParkingService {
                 ps.setString(1, vehicleNumber);
                 if (ps.executeUpdate() > 0) {
                     System.out.println("Vehicle " + vehicleNumber + " removed from slot " + slotId + " successfully.");
+                    TransactionManager.commitTransaction(conn);
+                } else {
+                    TransactionManager.rollbackTransaction(conn);
                 }
             }
 
         } catch (SQLException e) {
             System.err.println("Database error while removing vehicle: " + e.getMessage());
+            TransactionManager.rollbackTransaction(conn);
+        } finally {
+            TransactionManager.endTransaction(conn);
         }
     }
 

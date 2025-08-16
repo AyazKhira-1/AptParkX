@@ -48,6 +48,7 @@ public final class DatabaseManager {
         if (connectionInstance == null || connectionInstance.isClosed()) {
             try {
                 connectionInstance = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+                connectionInstance.setAutoCommit(false); // Disable auto-commit for transaction management
             } catch (SQLException e) {
                 System.err.println("Failed to establish a new database connection.");
                 throw e; // Re-throw the exception to be handled by the caller
