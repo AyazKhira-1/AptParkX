@@ -1,111 +1,63 @@
-# AptParkX - Apartment Parking Management System
+# AptParkX - Apartment Parking Management System 🚗
 
-**AptParkX** is a comprehensive, console-based application designed to manage the vehicle parking system for a residential apartment complex. Built with Java and powered by a MySQL database, this application provides a robust solution for both administrators and residents to handle parking-related tasks efficiently.
-
-The system is designed with a clean, multi-layered architecture and utilizes **JDBC transactions** to ensure data integrity, maintainability, scalability, and a clear separation of concerns.
+**AptParkX** is a robust, console-based Java application designed to streamline vehicle parking management for residential complexes. It offers a secure, multi-layered architecture backed by a MySQL database to handle resident registration, vehicle tracking, and automated parking slot allocation.
 
 ---
 
-## ✨ Features
+## ✨ Key Features
 
-The application offers two distinct user roles with a rich set of features for each:
+### 👤 Administrative Dashboard
+* **Resident Management**: Add, edit, search, and delete residents. Automatically generates unique Resident IDs and secure login credentials.
+* **Vehicle Oversight**: Track all registered vehicles. Enforces strict parking rules (max 1 four-wheeler and 2 two-wheelers per resident).
+* **Live Monitoring**: View real-time occupancy of resident and spare parking slots, filtered by apartment wing.
+* **Comprehensive Analytics**: Access detailed parking history for the entire complex, including total hours parked and revenue generated from spare slots.
+* **Credential Control**: Secure admin login with the ability to change usernames and high-validation passwords.
 
-### 👤 Admin Features
-- **Secure Login:** Admins have a separate, secure login to access their dashboard.
-- **Credential Management:** Ability to change their own username and password with strong password validation.
-- **Resident Management:**
-    - Add new residents with auto-generated credentials.
-    - View a complete list of all residents, with options to filter by apartment wing (A, B, C).
-    - Search for specific residents by their ID.
-    - Edit resident details (name, contact info).
-    - Delete residents and all their associated vehicles from the system.
-- **Vehicle Management:**
-    - Add new vehicles for residents, enforcing parking rules (e.g., max 1 four-wheeler, 2 two-wheelers).
-    - View a comprehensive list of all vehicles, with sorting options.
-    - Search for a specific vehicle by its registration number.
-    - Find a resident's details by searching for their vehicle number.
-    - Delete vehicles from the system.
-- **Parking Oversight:**
-    - View all currently parked vehicles in resident, spare, or both parking areas, with filtering by wing.
-    - Check the real-time availability of parking slots for each vehicle type and wing.
-    - View a complete parking history for resident, spare, or all parking, with filtering by wing.
-
-### 🚗 Resident Features
-- **Secure Login:** Residents can log in with their unique, auto-generated credentials.
-- **Parking Operations:**
-    - Park any of their unparked vehicles. The system automatically assigns the correct slot type and falls back to spare parking if the resident lot is full.
-    - Remove a parked vehicle from its slot.
-- **Personalized Views:**
-    - View a list of all their currently parked vehicles, including their location (resident or spare slot).
-    - View their personal parking history, with options to see resident, spare, or all records.
+### 🏠 Resident Portal
+* **Smart Parking**: Automatically identifies unparked vehicles and suggests appropriate slots (1-150 for 4-wheelers, 151-450 for 2-wheelers).
+* **Spare Parking Fallback**: Allows residents to park additional or guest vehicles in spare slots (451-500) when resident limits are reached.
+* **One-Click Removal**: Seamlessly remove vehicles from slots, which automatically calculates duration and updates history.
+* **Personal History**: Residents can view their specific parking logs, location of parked vehicles, and associated costs.
 
 ---
 
 ## 🛠️ Tech Stack & Architecture
 
-- **Language:** Java
-- **Database:** MySQL
-- **Driver:** MySQL Connector/J (JDBC)
-- **Architecture:** Multi-Layered
-    - **UI Layer:** Handles all user interaction and console output (`AdminUI`, `ResidentUI`, `InputHandler`).
-    - **Service Layer:** Contains the core business logic and orchestrates operations (`ResidentService`, `VehicleService`, `ParkingService`). This layer is responsible for managing transactions.
-    - **DAO (Data Access Object) Layer:** Manages all direct database communication (`ResidentDAO`, `VehicleDAO`).
-    - **Model Layer:** Represents the application's data structures (`Resident`, `Vehicle`).
-    - **Database Manager:** A singleton class to provide a centralized database connection point, now configured to support manual transaction management.
-- **Data Integrity:**
-    - **JDBC Transactions:** Critical operations that involve multiple database writes (like adding a resident with vehicles, or removing a parked vehicle) are wrapped in transactions to ensure atomicity. If any part of the operation fails, all changes are rolled back to prevent data inconsistency.
+* **Language**: Java (JDK 11+)
+* **Database**: MySQL (using JDBC for connectivity)
+* **Design Pattern**: 
+    * **DAO Pattern**: Decouples business logic from data persistence.
+    * **Service Layer**: Orchestrates business rules and transaction boundaries.
+    * **Singleton Database Manager**: Ensures efficient connection pooling.
+* **Data Integrity**: Utilizes **JDBC Transactions** (manual commit/rollback) to ensure operations like "Delete Resident" also cleanly remove all associated vehicles and parking records.
 
 ---
 
 ## 🚀 Getting Started
 
-Follow these instructions to get the project up and running on your local machine.
+### 📋 Prerequisites
+* Java Development Kit (JDK) 11 or higher.
+* MySQL Server 8.0+.
+* MySQL Connector/J (JDBC Driver).
 
-### Prerequisites
-- Java Development Kit (JDK) 11 or higher
-- An IDE like IntelliJ IDEA or Eclipse
-- MySQL Server
-- MySQL Connector/J library
-
-### 1. Database Setup
-1.  Open your MySQL management tool (like phpMyAdmin or MySQL Workbench).
-2.  Create a new database named `vehicle_parking_manager`.
-3.  Import the `vehicle_parking_manager.sql` file provided in the repository to set up all the necessary tables, data, and triggers.
-
-### 2. Project Configuration
-1.  Clone the repository to your local machine.
-2.  Open the project in your preferred IDE (e.g., IntelliJ IDEA).
-3.  **Add the MySQL Connector/J JAR file** to your project's libraries/dependencies.
-    - In IntelliJ IDEA: Go to `File` -> `Project Structure` -> `Modules` -> `Dependencies` -> `+` -> `JARs or directories...` and select the downloaded MySQL Connector JAR file.
-4.  Navigate to `src/database/DatabaseManager.java` and, if necessary, update the `DB_USER` and `DB_PASSWORD` constants to match your MySQL credentials.
-
-### 3. Running the Application
-1.  Locate the `src/main/AptParkX.java` file.
-2.  Run the `main` method from within your IDE.
-3.  The application will start in your console.
+### ⚙️ Installation & Setup
+1.  **Database Configuration**:
+    * Import `vehicle_parking_manager.sql` into your MySQL server.
+    * Verify settings in `src/database/DatabaseManager.java` (URL, User, Password).
+2.  **Project Build**:
+    * Open the project in your IDE (IntelliJ/Eclipse).
+    * Add the `mysql-connector-java.jar` to your project dependencies.
+3.  **Run**:
+    * Execute the `main` method in `src/main/AptParkX.java`.
 
 ---
 
-## 📂 Project Structure
-
-```
+## 📂 System Structure
+```text
 src/
-├── dao/
-│   ├── ResidentDAO.java
-│   └── VehicleDAO.java
-├── database/
-│   ├── DatabaseManager.java
-│   └── TransactionManager.java
-├── main/
-│   └── AptParkX.java
-├── model/
-│   ├── Resident.java
-│   └── Vehicle.java
-├── services/
-│   ├── ParkingService.java
-│   ├── ResidentService.java
-│   └── VehicleService.java
-└── ui/
-    ├── AdminUI.java
-    ├── InputHandler.java
-    └── ResidentUI.java
+├── dao/        # Data Access Objects (SQL Queries)
+├── database/   # Connection & Transaction Management
+├── ds/         # Custom Data Structures (LinkedLists for History)
+├── model/      # Plain Old Java Objects (Resident, Vehicle)
+├── services/   # Core Business Logic
+└── ui/         # Console Interface & Input Validation
